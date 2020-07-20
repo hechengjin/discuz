@@ -31,7 +31,13 @@ class db_driver_mysql
 
 	function set_config($config) {
 		$this->config = &$config;
-		$this->tablepre = $config['1']['tablepre'];
+                //$this->halt(' 2 '.json_encode($this->config['1']), 111111);
+		//$this->tablepre = $this->config['1']['tablepre'];//$config['1']['tablepre'];
+                //$this->halt(' '.$this->config['1']['tablepre'], 111111);
+                $this->tablepre = $this->config['1']['tablepre'];
+                //$this->halt(' '.$this->tablepre, 111111);
+                //var_dump($this->config['1']['tablepre']);
+                //var_dump($this->tablepre);
 		if(!empty($this->config['map'])) {
 			$this->map = $this->config['map'];
 			for($i = 1; $i <= 100; $i++) {
@@ -77,11 +83,12 @@ class db_driver_mysql
 	}
 
 	function _dbconnect($dbhost, $dbuser, $dbpw, $dbcharset, $dbname, $pconnect, $halt = true) {
-
+              //$this->halt(' '.$dbhost.' '.$dbuser.' '.$dbname, $pconnect);
 		if($pconnect) {
-			$link = @mysql_pconnect($dbhost, $dbuser, $dbpw, MYSQL_CLIENT_COMPRESS);
+			$link = @mysqli_pconnect($dbhost, $dbuser, $dbpw, MYSQL_CLIENT_COMPRESS);
 		} else {
-			$link = @mysql_connect($dbhost, $dbuser, $dbpw, 1, MYSQL_CLIENT_COMPRESS);
+			//$link = @mysqli_connect($dbhost, $dbuser, $dbpw, 1, MYSQL_CLIENT_COMPRESS);
+                        $link = @mysqli_connect($dbhost, $dbuser, $dbpw, $dbname);
 		}
 		if(!$link) {
 			$halt && $this->halt('notconnect', $this->errno());
@@ -91,32 +98,46 @@ class db_driver_mysql
 				$dbcharset = $dbcharset ? $dbcharset : $this->config[1]['dbcharset'];
 				$serverset = $dbcharset ? 'character_set_connection='.$dbcharset.', character_set_results='.$dbcharset.', character_set_client=binary' : '';
 				$serverset .= $this->version() > '5.0.1' ? ((empty($serverset) ? '' : ',').'sql_mode=\'\'') : '';
-				$serverset && mysql_query("SET $serverset", $link);
+				$serverset && mysqli_query($link, "SET $serverset");
 			}
-			$dbname && @mysql_select_db($dbname, $link);
+			$dbname && @mysqli_select_db($link, $dbname);
 		}
 		return $link;
 	}
 
 	function table_name($tablename) {
+                //$tabpre = 'firemail';
+                //$this->halt(' '.$tabpre, 111111);
+                //$this->halt('tablename:'.$tablename.' tabpre:'.$tabpre.' tablepre:'.$this->tablepre, 111111);
 		if(!empty($this->map) && !empty($this->map[$tablename])) {
+                        //$this->halt(' 1', 111111);
 			$id = $this->map[$tablename];
+                        //if(!empty($this->config[$id]['tablepre'])){
+	                  // $this->tablepre = $this->config[$id]['tablepre'];
+                        //}
 			if(!$this->link[$id]) {
 				$this->connect($id);
 			}
 			$this->curlink = $this->link[$id];
 		} else {
+                        //$this->halt(' 2 '.json_encode($this->config['1']), 111111);
+                        //$this->tablepre = $this->config['1']['tablepre'];
 			$this->curlink = $this->link[1];
 		}
-		return $this->tablepre.$tablename;
+                //var_dump($this->config['1']['tablepre']);
+                //var_dump($this->tablepre);
+                //var_dump($this->config['1']['tablepre'].$tablename);
+                //$this->halt(' '.$this->config['1']['tablepre'].$tablename, 111111);
+		//return $this->tablepre.$tablename;
+                return $this->config['1']['tablepre'].$tablename;
 	}
 
 	function select_db($dbname) {
-		return mysql_select_db($dbname, $this->curlink);
+		return mysqli_select_db($this->curlink, $dbname);
 	}
 
 	function fetch_array($query, $result_type = MYSQL_ASSOC) {
-		return mysql_fetch_array($query, $result_type);
+		return mysqli_fetch_array($query, $result_type);
 	}
 
 	function fetch_first($sql) {
@@ -140,9 +161,12 @@ class db_driver_mysql
 			$unbuffered = false;
 		}
 
-		$func = $unbuffered ? 'mysql_unbuffered_query' : 'mysql_query';
-
-		if(!($query = $func($sql, $this->curlink))) {
+		//$func = $unbuffered ? 'mysql_unbuffered_query' : 'mysqli_query';
+                $func = 'mysqli_query';
+                //var_dump($this->curlink);
+                
+		//if(!($query = $func($sql, $this->curlink))) {
+                if(!($query = $func($this->curlink, $sql))) {
 			if(in_array($this->errno(), array(2006, 2013)) && substr($silent, 0, 5) != 'RETRY') {
 				$this->connect();
 				return $this->query($sql, 'RETRY'.$silent);
@@ -161,57 +185,57 @@ class db_driver_mysql
 	}
 
 	function affected_rows() {
-		return mysql_affected_rows($this->curlink);
+		return mysqli_affected_rows($this->curlink);
 	}
 
 	function error() {
-		return (($this->curlink) ? mysql_error($this->curlink) : mysql_error());
+		return (($this->curlink) ? mysqli_error($this->curlink) : mysqli_error());
 	}
 
 	function errno() {
-		return intval(($this->curlink) ? mysql_errno($this->curlink) : mysql_errno());
+		return intval(($this->curlink) ? mysqli_errno($this->curlink) : mysqli_errno());
 	}
 
 	function result($query, $row = 0) {
-		$query = @mysql_result($query, $row);
+		$query = @mysqli_result($query, $row);
 		return $query;
 	}
 
 	function num_rows($query) {
-		$query = mysql_num_rows($query);
+		$query = mysqli_num_rows($query);
 		return $query;
 	}
 
 	function num_fields($query) {
-		return mysql_num_fields($query);
+		return mysqli_num_fields($query);
 	}
 
 	function free_result($query) {
-		return mysql_free_result($query);
+		return mysqli_free_result($query);
 	}
 
 	function insert_id() {
-		return ($id = mysql_insert_id($this->curlink)) >= 0 ? $id : $this->result($this->query("SELECT last_insert_id()"), 0);
+		return ($id = mysqli_insert_id($this->curlink)) >= 0 ? $id : $this->result($this->query("SELECT last_insert_id()"), 0);
 	}
 
 	function fetch_row($query) {
-		$query = mysql_fetch_row($query);
+		$query = mysqli_fetch_row($query);
 		return $query;
 	}
 
 	function fetch_fields($query) {
-		return mysql_fetch_field($query);
+		return mysqli_fetch_field($query);
 	}
 
 	function version() {
 		if(empty($this->version)) {
-			$this->version = mysql_get_server_info($this->curlink);
+			$this->version = mysqli_get_server_info($this->curlink);
 		}
 		return $this->version;
 	}
 
 	function close() {
-		return mysql_close($this->curlink);
+		return mysqli_close($this->curlink);
 	}
 
 	function halt($message = '', $code = 0, $sql = '') {

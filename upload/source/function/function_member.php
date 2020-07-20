@@ -134,7 +134,7 @@ function loginfailed($username) {
 	if(function_exists('uc_user_logincheck')) {
 		return;
 	}
-	C::t('common_failedlogin')->update_failed($_G['clientip']);
+	C::t('common_failedlogin')->update_failed($_G['clientip'], $username);
 }
 
 function getinvite() {
